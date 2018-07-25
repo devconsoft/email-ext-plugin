@@ -36,6 +36,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * These settings are global configurations
@@ -54,6 +56,11 @@ public final class ExtendedEmailPublisherDescriptor extends BuildStepDescriptor<
      * Jenkins's own URL, to put into the e-mail.
      */
     private transient String hudsonUrl;
+
+    /**
+     * If an unknown users email match the provided reg-exp, it will be sent.
+     */
+    private String sendToUnknownUserPattern = "";
 
     /**
      * o
@@ -286,6 +293,15 @@ public final class ExtendedEmailPublisherDescriptor extends BuildStepDescriptor<
 
     public void setSmtpServer(String smtpServer) {
         this.smtpHost = smtpServer;
+    }
+
+    public String getSendToUnknownUserPattern() {
+        return sendToUnknownUserPattern;
+    }
+
+    @SuppressWarnings("unused")
+    public void setSendToUnknownUserPattern(String sendToUnknownUserPattern) {
+        this.sendToUnknownUserPattern = sendToUnknownUserPattern;
     }
 
     public String getSmtpAuthUsername() {
@@ -562,6 +578,17 @@ public final class ExtendedEmailPublisherDescriptor extends BuildStepDescriptor<
         // Configure the smtp server
         smtpHost = nullify(req.getParameter("ext_mailer_smtp_server"));
         defaultSuffix = nullify(req.getParameter("ext_mailer_default_suffix"));
+
+
+        // unknown user settings
+        sendToUnknownUserPattern = req.getParameter("ext_mailer_send_to_unknown_user_pattern");
+        try {
+            if (sendToUnknownUserPattern != "") {
+                Pattern.compile(sendToUnknownUserPattern);
+            }
+        } catch (PatternSyntaxException ex) {
+            throw new FormException(ex.getMessage(), "Always send to unknown user matching (regex)");
+        }
 
         // specify authentication information
         if (req.hasParameter("ext_mailer_use_smtp_auth")) {

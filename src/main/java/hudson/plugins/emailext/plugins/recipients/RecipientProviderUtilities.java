@@ -34,6 +34,7 @@ import hudson.model.TaskListener;
 import hudson.model.User;
 import hudson.plugins.emailext.EmailRecipientUtils;
 import hudson.plugins.emailext.ExtendedEmailPublisherContext;
+import hudson.plugins.emailext.ExtendedEmailPublisherDescriptor;
 import hudson.scm.ChangeLogSet;
 import hudson.tasks.MailSender;
 import jenkins.model.Jenkins;
@@ -51,6 +52,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+
+
 
 public final class RecipientProviderUtilities {
     private static final Logger LOGGER = Logger.getLogger(RecipientProviderUtilities.class.getName());
@@ -199,6 +205,8 @@ public final class RecipientProviderUtilities {
                         } catch (UsernameNotFoundException x) {
                             if (SEND_TO_UNKNOWN_USERS) {
                                 listener.getLogger().printf("Warning: %s is not a recognized user, but sending mail anyway%n", userAddress);
+                            } else if (sendToUnknownUserPatternMatch(userAddress)) {
+                                listener.getLogger().printf("%s is not a recognized user, but sending mail anyway due to 'Always send to unknown user match' - system configuration%n", userAddress);
                             } else {
                                 listener.getLogger().printf("Not sending mail to unregistered user %s because your SCM"
                                         + " claimed this was associated with a user ID ‘", userAddress);
@@ -222,4 +230,22 @@ public final class RecipientProviderUtilities {
             }
         }
     }
+
+    private static String nonull(String s) {
+        return (s == null) ? "" : s;
+    }
+
+    private static boolean sendToUnknownUserPatternMatch(String userAddress) {
+        boolean result = false;
+        try {
+            Pattern p = Pattern.compile(nonull(
+                    Jenkins.getActiveInstance().getDescriptorByType(ExtendedEmailPublisherDescriptor.class).getSendToUnknownUserPattern()));
+            result = (p.pattern() != "") && p.matcher(userAddress).find();
+        } catch (PatternSyntaxException e) {
+            LOGGER.warning("Invalid system configuration for 'Extended E-mail Notification' (Email-ext plugin), Always send to unknown user match: "
+                    + e.getMessage());
+        }
+        return result;
+    }
+
 }
